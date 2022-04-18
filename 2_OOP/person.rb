@@ -6,7 +6,7 @@ class Person
   end
 
   def name
-    self.first_name + (self.last_name.empty? ? '' : ' ' + self.last_name)
+    first_name + (last_name.empty? ? '' : ' ' + last_name)
   end
 
   def ==(other)
@@ -25,7 +25,7 @@ class Person
 
   def parse_name(full_name)
     self.first_name, self.last_name = full_name.split
-    self.last_name = '' if self.last_name.nil?
+    self.last_name = '' if last_name.nil?
   end
 end
 

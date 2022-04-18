@@ -17,9 +17,9 @@ class Dog < Pet
     'swimming!'
   end
 
-   def fetch
-     'fetching!'
-   end
+  def fetch
+    'fetching!'
+  end
 end
 
 class Cat < Pet

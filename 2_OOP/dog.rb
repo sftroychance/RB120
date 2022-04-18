@@ -15,8 +15,8 @@ class Bulldog < Dog
 end
 
 teddy = Dog.new
-puts teddy.speak           # => "bark!"
-puts teddy.swim           # => "swimming!"
+puts teddy.speak # => "bark!"
+puts teddy.swim # => "swimming!"
 
 bully = Bulldog.new
 puts bully.speak

@@ -1,0 +1,89 @@
+Rock Paper Scissors - OO Exercise Walkthrough
+
+The classical approach to object oriented programming is:
+
+Write a textual description of the problem or exercise.
+Extract the major nouns and verbs from the description.
+Organize and associate the verbs with the nouns.
+The nouns are the classes and the verbs are the behaviors or methods.
+
+Textual description:
+
+Rock Paper Scissors is a two-player game in which both players make a move
+simultaneously. There are three possible moves: rock, paper, and scissors.  The
+moves are then assessed to determine who wins or if there is a tie. 
+
+Move comparisons (rules)
+rock beats scissors
+scissors beats paper
+paper beats rock
+
+If both players choose the same move, the game is a tie. 
+
+Nouns: player, game, move, rule 
+Verbs: choose, compare
+
+Association:
+players 
+  choose
+game
+  compare (moves are compared to determine winner)
+move
+rule
+
+Classes/methods:
+
+class Player
+  def initialize
+  end 
+
+  def choose
+  end 
+end
+
+class Game
+  def initialize
+  end
+
+  def compare
+  end
+end
+
+class Move
+  def initialize
+  end
+end
+
+class Rule
+  def initialize
+  end
+end
+
+Orchestration engine:
+(Possibly where compare and winner selection should be done)
+
+class RPS_game
+  def initialize
+  end
+
+  def play
+  end
+end 
+
+Algorithm:
+game play:
+-welcome message
+-player1 makes a move
+-player2 makes a move
+-a winner is decided and displayed
+-continue (loop game) or quit
+
+**
+- instantiate game
+- instantiate players
+- players move
+  - instantiate move?
+- winner determined (by Game object?)
+  - instantiate rule?
+- display winner
+- continue or quit
