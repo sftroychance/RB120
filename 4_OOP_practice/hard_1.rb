@@ -57,9 +57,39 @@ This new class does not fit well with the object hierarchy defined so far.
 Catamarans don't have tires. But we still want common code to track fuel
 efficiency and range. Modify the class definitions and move code into a
 Module, as necessary, to share code among the Catamaran and the wheeled vehicles.
+
+=> Posted a question in discussion about having an initialize method in the
+module Fuelable so the variable initializations for @fuel_efficiency and
+@fuel_capacity aren't duplicated. Not sure if this is a good practice, but it
+ prevents repetition of code. A solution might be to name that method
+something else in Fuelable and call that method from each class initialize
+method, but this might sacrifice readability.
+
+2. Building on the prior vehicles question, we now must also track a basic
+motorboat. A motorboat has a single propeller and hull, but otherwise behaves
+similar to a catamaran. Therefore, creators of Motorboat instances don't need
+to specify number of hulls or propellers. How would you modify the vehicles
+code to incorporate a new Motorboat class?
+
+=> Added SeaVehicle as a parent class for Motorboat and Catamaran; the
+Catamaran class can be empty since the SeaVehicle constructor is fine. The
+Motorboat class just overrides the constructor to call super with propeller
+and hull counts of 1.
+
+3. The designers of the vehicle management system now want to make an
+adjustment for how the range of vehicles is calculated. For the seaborne
+vehicles, due to prevailing ocean currents, they want to add an additional
+10km of range even if the vehicle is out of fuel.
+
+Alter the code related to vehicles so that the range for autos and
+motorcycles is still calculated as before, but for catamarans and motorboats,
+ the range method will return an additional 10km.
+
+=> Override the range method in SeaVehicle to call super and then add 10 to
+that value.
 =end
 
-module Fuelable
+module Movable
   attr_accessor :speed, :heading
 
   def initialize(km_traveled_per_liter, liters_of_fuel_capacity)
@@ -77,7 +107,7 @@ module Fuelable
 end
 
 class WheeledVehicle
-  include Fuelable
+  include Movable
 
   def initialize(tire_array, km_traveled_per_liter, liters_of_fuel_capacity)
     @tires = tire_array
@@ -107,8 +137,8 @@ class Motorcycle < WheeledVehicle
   end
 end
 
-class Catamaran
-  include Fuelable
+class SeaVehicle
+  include Movable
 
   attr_reader :propeller_count, :hull_count
 
@@ -117,14 +147,34 @@ class Catamaran
     @hull_count = num_hulls
     super(km_traveled_per_liter, liters_of_fuel_capacity)
   end
+
+  def range
+    super + 10
+  end
+end
+
+class Catamaran < SeaVehicle
+end
+
+class Motorboat < SeaVehicle
+  def initialize(km_traveled_per_liter, liters_of_fuel_capacity)
+    super(1, 1, km_traveled_per_liter, liters_of_fuel_capacity)
+  end
 end
 
 my_auto = Auto.new
+p my_auto
 puts my_auto.range
 
 my_motorcycle = Motorcycle.new
+p my_motorcycle
 puts my_motorcycle.range
 
-my_catamaran = Catamaran.new(2, 5, 20, 8)
+my_catamaran = Catamaran.new(2, 5, 20, 8.0)
+p my_catamaran
 puts my_catamaran.range
+
+my_motorboat = Motorboat.new(25, 10.0)
+p my_motorboat
+puts my_motorboat.range
 
