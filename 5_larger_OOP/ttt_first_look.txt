@@ -1,0 +1,137 @@
+We'll take an object-oriented approach to designing the solution, so we'll
+employ the steps we learned earlier:
+
+1. Write a description of the problem and extract major nouns and verbs.
+
+2. Make an initial guess at organizing the verbs into nouns and do a spike to
+explore the problem with temporary code.
+
+3. Optional - when you have a better idea of the problem, model your thoughts into
+CRC cards.
+
+Problem description
+TicTacToe is a two-player game in which each player takes a turn marking squares
+on a 3x3 grid; the first player to fill a row horizontally, vertically, or
+diagonally wins the game.
+
+nouns: player, game, grid, squares
+verbs: takes turn
+
+TicTacToe (game engine)
+Player
+  - move (take turn)
+Board (grid/squares)
+  - display board
+
+class Player
+  def initialize
+  end
+
+  def move
+  end
+end
+
+class Board
+  def initialize
+  end
+
+  def display
+  end
+end
+
+class TicTacToe
+  def initialize
+  end
+
+  def play
+    display welcome message
+
+    game loop
+
+      round loop
+        display board
+        first player move
+        break if winner or board full
+        second player move
+        break if winner or board full
+      end
+      
+      display game result
+
+      break unless play again
+      reset game
+  end 
+
+  display goodbye message
+end 
+
+CRC:
+
+1.  C: TicTacToe
+    R: manages game process
+    Col: Player, Scoreboard, Scorekeeper, Computer
+
+2.  C: Player
+    R: makes a move on the board
+    Col: Scoreboard
+
+3.  C: Scoreboard
+    R: displays game grid, maintains board state
+    Col: Scorekeeper
+
+4.  C: Scorekeeper
+    R: maintains score for multi-round game, calculates winner, calculates
+    remaining spaces
+    Col: Player, Scoreboard
+
+5.  C: Computer < Player
+    R: makes a move on the board per strategy
+    Col: Scoreboard, Strategy
+
+6.  C: Strategy
+    R: finds the best possible move for a given game state
+    Col: Scoreboard
+
+7.  Module: Notifier
+    R: displays user prompts and error messages (possible YML use) 
+    Included in: TicTacToe, Player
+
+Notes:
+
+It might be better to merge Scoreboard and Scorekeeper, since Scoreboard is
+maintaining the board state but Scorekeeper is making the calculations; might
+make more sense to keep those functions togetherr. It just seems like a lot of
+functionality to put into one class. Considered placing the grid display method 
+into Notifier, but it would only be called by the Scoreboard object, so probably
+best to keep it there.  The other Notifier methods at least would be shared by
+more than one class, and it's useful to have the hash (pulled
+from a YML file) with all the prompts and error messages in that one location. 
+
+As with RPS, could consider subclassing Computer into different personalities
+that exhibit different levels of difficulty (randomly selecting a space,
+selecting with basic blocking/winning strategy, and selecting using a minimax
+algorithm). Each game (of several matches) could randomly select a computer, or
+the user could be given an option of opponent ('random' could be a user option). 
+
+After the RB101 version of TTT, I had some ideas about consolidating the code
+for displaying the board: each square is a multidimensional array within an
+array; displaying the board is joining the individual lines of the array. An
+empty square can display the square number, a full square replacing that value
+with X or O (could opt for different colors for that text as in the previous
+TTT). (square size: 9 wide x 7 high, empty square center -#- with # the square
+number, X or O square with letters formatted over 5x5 in the center; a square
+method returns the multidimensional array representing the display of the
+square). to display: array holding all squares is divided per grid size, each
+line joined with vertical divider, with a larger join with the horizontal
+divider. (could also have each square as a string and use scan(/.{square_size}/
+to divide it)
+
+         |         |         
+         |   OOO   |  X   X   
+         |  O   O  |   X X     
+   -1-   |  O   O  |    X    
+         |  0   0  |   X X   
+         |   000   |  X   X  
+         |         |       
+---------+---------+---------
+         |         |       
