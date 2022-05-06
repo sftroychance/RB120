@@ -1,0 +1,84 @@
+## Discussion on OO TTT Code
+
+I feel modification of OO code is much easier than for procedural code. It helps
+distinguish which parts of the code have which responsibilities, so it is easier
+to track where an error is coming from. Changes can be isolated to one part of
+the code and as long as interfaces don't change, errors won't be propagated
+across the entire body of code.
+
+Generic object names can be placed into a module for namespacing. Here, we could
+have a module that contains all the classes except TTTGame and include it within
+that class. TTTGame is specific enough that its name should not be duplicated;
+if we placed that into a module as well, the user would have to know to include
+the module in the project to start a game (as I'm guessing gems work).
+
+The Player class is bare, but anticipating future needs, it seems appropriate to
+maintain it as a class. One consideration is deciding whether it is appropriate
+to place the 'move' functionality in the player class as opposed to the TTTGame
+class. Another is that at some point, we'll likely implement strategy for a
+computer user, so we will likely subclass Computer from the Player class in
+order to include that functionality.
+
+One consideration of a Computer class is that to determine strategy, it will
+need to collaborate with Board as it will need to be aware of board state and
+will need to calculate theoretical board states.
+
+Dependency graph:
+
+TTTGame collab: Player TTTGame collab: Board Board collab: Square
+
+Considering dependencies:  My initial idea was that Player class would
+collaborate with Board in order to make a move, but also, in order to customize
+the display of the game, I'd like to have the board address the user by name and
+include the name on the 'scoreboard'. Would this require creating another
+dependency? Would simply sending the name to the Board class (as opposed to
+having the Board class maintain a Player object just to access the name) make
+more sense, or would it be duplicative (the player's name would be stored in two
+different objects). This might be the best option since Scorekeeper doesn't need
+to access other data or functionality for the player.
+
+In considering possible future functionality (computer strategy, multiple rounds
+per game), my thought has been to have a Scorekeeper class (which has many of
+the functions of the current Board class, like determining available spaces,
+determining a winner), and have that class collaborate with a Board class, which
+handles the display of the board but also the other score parameters (overall
+game score, and also the welcome/goodbye messaging)--so it would be more a
+Scoreboard class (envisioning it as a professional scoreboard--the scorekeeper
+maintains the score and rules and then displays all current info on the
+scoreboard). But in that case I would reduce board state to simply an array,
+which I think would be useful in terms of multiple grid sizes (which was an
+option in RB100 so I'm anticipating it will be one in this version).
+
+With this option, I would consider not having a Square class, as its primary
+function thus far is to query whether it is 'marked' and return a string value;
+instead, I might opt for maintaining the board state in an array and using nil
+values for un-marked spaces.
+
+Having a Scoreboard class separate from the functionality of the Scorekeeper
+class I think would be helpful in terms of organizing a display that
+accommodates multiple grid sizes and displaying more complex grid designs (using
+color to mark each unmarked square with its number, which is helpful with larger
+grids, and also using ASCII box drawing for a more polished terminal look).
+
+possible dependency graph with these thoughts:
+
+TTTGame collab: Scorekeeper TTTGame collab: Player Player (and Computer) collab:
+Scorekeeper Scorekeeper collab: Scoreboard
+
+TTTGame initializes Scorekeeper object, then initializes Player and Computer
+objects and passes them the Scorekeeper object. This places all the moves and
+winner determinations in the Scorekeeper object rather than the TTTGame object.
+
+If Scoreboard handles all the display functionality, it can handle the
+welcome/goodbye messages and winner announcements. To maintain a static display,
+those messages could appear in the block that holds the game score.
+
+Q: How does the Scorekeeper (and in turn the scoreboard) know the name of the
+player if we want that displayed?  The scoreboard has to be initialized first in
+order to send that object to each player class.
+
+A: Perhaps in Player#move, it could send the player name and move, and the
+scorekeeper will decipher which player is X and which is O.
+
+Q: best way to translate between 0-based array and 1-based board and keep it
+readable.

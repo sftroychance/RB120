@@ -1,0 +1,28 @@
+:welcome: |
+  Welcome to TicTacToe! 
+  
+  First to %{rounds} wins takes the game!
+
+  GOOD LUCK!
+:name:  What is your name?
+:options: Would you like to configure game options? (y or n)
+:marker:  What marker would you like to use on the board?
+:first_turn: |
+  Who should take the first turn?
+
+  1) You, the player
+  2) The computer
+  3) Let the computer decide!
+:invalid:     Please enter a valid selection
+:grid:        The standard grid size for TicTacToe is 3 x 3. How high do you want to go?
+:difficulty:  Which computer opponent can you handle?
+:first:       Which player should go first?
+:select:      Select a square
+:inv_square:  That is not a valid square
+:winner:      The winner of this round is
+:tie:         It's a tie!
+:enter:       Enter to continue
+:game_winner: The first to five wins is
+:congrats:    Congratulations on your win!!!
+:play_again:  Would you like to play again? (y or n)
+:goodbye:     Thanks for playing TicTacToe! Goodbye!

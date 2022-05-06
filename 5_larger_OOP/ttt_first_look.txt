@@ -135,3 +135,38 @@ to divide it)
          |         |       
 ---------+---------+---------
          |         |       
+
+  000
+  0 0
+  000
+
+  X X
+   X
+  X X
+
+  simpler square format (facilitates larger grid sizes)
+-------+-------+-------
+       |       |
+   X   |   O   |
+       |       |
+-------+-------+-------
+       |       |
+   X   |   O   |
+       |       |
+-------+-------+-------
+       |       |
+  -7-  |  -8-  |   X
+       |       |
+
+square = []
+blank = [' ' * 7]
+mark = "-#{space_number}-" in red
+or mark = '#{player_mark}' in blue
+square << blank << mark.center(7) << blank
+squares << square
+
+board is array (muldim?) of X, O or nil
+
+also: unicode box drawing
+https://en.wikipedia.org/wiki/Box_Drawing
+(puts "\u2566", etc)
