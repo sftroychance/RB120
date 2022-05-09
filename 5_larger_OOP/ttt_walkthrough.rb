@@ -7,7 +7,7 @@ class Board
 
   def initialize
     @squares = {}
-    reset
+    reset_board
   end
 
   def []=(key, marker)
@@ -37,7 +37,7 @@ class Board
     nil
   end
 
-  def reset
+  def reset_board
     (1..9).each { |key| @squares[key] = Square.new }
   end
 
@@ -211,7 +211,7 @@ class TTTGame
   end
 
   def reset
-    board.reset
+    board.reset_board
     clear_screen_and_display_board
   end
 

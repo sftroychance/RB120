@@ -81,6 +81,10 @@ module Notifier
 - prompt method
 -
 
+more than 2 players:
+
+max number of players is grid_size - 1
+
 =end
 
 module Notifier
@@ -100,59 +104,13 @@ module Notifier
   end
 end
 
-class Board
+module Displayable
   EMPTY = ' '
   SQ_WIDTH = 7    # set odd number for centering
   SQ_HEIGHT = 3   # set odd number for centering
   TERMINAL_WIDTH = 80
   SCORE_FIELD_WIDTH = 25
   DIVIDERS = { horiz: "\u2500", vert: "\u2502", intersect: "\u253c" }
-
-  attr_accessor :marks, :players
-  attr_reader :grid_size
-
-  def initialize
-    @players = {}
-  end
-
-  def grid_size=(grid_size)
-    @grid_size = grid_size
-    init_marks
-  end
-
-  def max_score
-    @players.max_by { |_, v| v[:score] }[1][:score]
-  end
-
-  def reset
-    init_marks
-  end
-
-  def register_player(name, marker)
-    players[marker] = Hash.new
-    players[marker][:name] = name
-    players[marker][:score] = 0
-  end
-
-  def find_winner
-    find_all_lines.each do |line|
-      players.keys.each do |player|
-        if line.all?(player)
-          return player
-        end
-      end
-    end
-
-    nil
-  end
-
-  def winner_found?
-    !!find_winner
-  end
-
-  def init_marks
-    @marks = Array.new(grid_size) { Array.new(grid_size, EMPTY) }
-  end
 
   def display_board
     system('clear')
@@ -161,14 +119,18 @@ class Board
   end
 
   def display_result
+    winner = find_winner
+
+    if winner
+      result_message = "#{@players[winner][:name]} wins this round!"
+      @players[winner][:score] += 1
+    else
+      result_message = "This round is a tie!"
+    end
+
     display_board
     puts
-    if winner_found?
-      puts "#{@players[find_winner][:name]} wins this round!"
-      @players[find_winner][:score] += 1
-    else
-      puts "This round is a tie!"
-    end
+    puts result_message
   end
 
   def display_final
@@ -198,10 +160,6 @@ class Board
   end
 
   def draw
-    # build_grid.each do |line|
-    #   #puts line.center(TERMINAL_WIDTH)
-    #   puts line
-    # end
     puts build_grid
   end
 
@@ -237,6 +195,62 @@ class Board
 
     output
   end
+end
+
+class Board
+  include Displayable
+
+  attr_accessor :marks, :players
+  attr_reader :grid_size
+
+  def initialize
+    @players = {}
+  end
+
+  def grid_size=(grid_size)
+    @grid_size = grid_size
+    init_marks
+  end
+
+  def max_score
+    @players.max_by { |_, v| v[:score] }[1][:score]
+  end
+
+  def reset_board
+    init_marks
+  end
+
+  def reset_score
+    @players.each do |_, v|
+      v[:score] = 0
+    end
+  end
+
+  def register_player(name, marker)
+    players[marker] = Hash.new
+    players[marker][:name] = name
+    players[marker][:score] = 0
+  end
+
+  def find_winner
+    find_all_lines.each do |line|
+      players.keys.each do |player|
+        if line.all?(player)
+          return player
+        end
+      end
+    end
+
+    nil
+  end
+
+  def winner_found?
+    !!find_winner
+  end
+
+  def init_marks
+    @marks = Array.new(grid_size) { Array.new(grid_size, EMPTY) }
+  end
 
   def find_all_lines
     flip = marks.transpose
@@ -259,7 +273,7 @@ class Board
   def available_spaces_string
     available_spaces.join(', ')
                     .reverse
-                    .sub(', '.reverse, ' ' + 'or'.reverse + ', '.reverse)
+                    .sub(',', ' or'.reverse)
                     .reverse
   end
 
@@ -278,6 +292,10 @@ class Board
   def mark_choice(choice, marker)
     choice -= 1
     marks[choice / grid_size][choice % grid_size] = marker
+  end
+
+  def center_space
+    grid_size**2 / 2 + 1
   end
 end
 
@@ -318,22 +336,154 @@ class Human < Player
   end
 end
 
-module Strategy
-  class BasicStrategy
+module Strategic
+  class Strategy
     def move(board, marker)
-      board.mark_choice(board.available_spaces.sample, marker)
+      @board = board
+      @marker = marker
+    end
+
+    def random_move
+      @board.mark_choice(@board.available_spaces.sample, @marker)
+    end
+
+    def center_move
+      center = @board.center_space
+      if @board.grid_size.odd? && @board.space_empty?(center)
+        @board.mark_choice(center, @marker)
+        return 1
+      end
+
+      nil
+    end
+
+    def other_players
+      @board.players.keys - [@marker]
     end
   end
 
-  class OffenseDefenseStrategy
+  class BasicStrategy < Strategy
+    def move(board, marker)
+      super
+
+      random_move
+    end
   end
 
-  class MinimaxStrategy
+  class OffenseDefenseStrategy < Strategy
+    def move(board, marker)
+      super
+
+      center_move ||
+        winning_move ||
+        blocking_move ||
+        random_move
+    end
+
+    def winning_move
+      @board.available_spaces.each do |space|
+        @board.mark_choice(space, @marker)
+        return 1 if @board.find_winner == @marker
+        @board.mark_choice(space, Board::EMPTY)
+      end
+
+      nil
+    end
+
+    def blocking_move
+      @board.available_spaces.each do |space|
+        other_players.each do |player|
+          @board.mark_choice(space, player)
+
+          if @board.find_winner == player
+            @board.mark_choice(space, @marker)
+            return 1
+          else
+            @board.mark_choice(space, Board::EMPTY)
+          end
+        end
+      end
+
+      nil
+    end
+  end
+
+  class MinimaxStrategy < Strategy
+    def move(board, marker)
+      super
+
+      center_move ||
+        best_move
+    end
+
+    def best_move
+      best_score = -100
+      best_choice = 0
+
+      # shuffle randomizes the computer AI selection
+      # amongst multiple moves with equally highest value
+      @board.available_spaces.shuffle.each do |space|
+        @board.mark_choice(space, @marker)
+
+        current_score = minimax(0, false)
+
+        @board.mark_choice(space, Board::EMPTY)
+
+        if current_score > best_score
+          best_score = current_score
+          best_choice = space
+        end
+      end
+
+      @board.mark_choice(best_choice, @marker)
+    end
+
+    def minimax(depth, computer_turn)
+      if @board.find_winner == @marker
+        return 10 - depth
+      end
+
+      if @board.find_winner == other_player
+        return -10 + depth
+      end
+
+      if @board.full?
+        return 0
+      end
+
+      if computer_turn
+        best_path = -100
+
+        @board.available_spaces.each do |space|
+          @board.mark_choice(space, @marker)
+
+          best_path = [best_path, minimax(depth + 1, !computer_turn)].max
+
+          @board.mark_choice(space, Board::EMPTY)
+        end
+      else
+        best_path = 100
+
+        @board.available_spaces.each do |space|
+          @board.mark_choice(space, other_player)
+
+          best_path = [best_path, minimax(depth + 1, !computer_turn)].min
+
+          @board.mark_choice(space, Board::EMPTY)
+        end
+      end
+
+      best_path
+    end
+
+    def other_player
+      other_players[0]
+    end
   end
 end
 
 class Computer < Player
-  include Strategy
+  include Strategic
 
   attr_accessor :strategy
 
@@ -352,13 +502,13 @@ class TTTGame
   WINS_PER_GAME = 5
   GRID_SIZES = (3..9).to_a
   DEFAULT_GRID_SIZE = 3
-  COMPUTERS = { 'Gus' => { strategy: Strategy::BasicStrategy,
+  COMPUTERS = { 'Gus' => { strategy: Strategic::BasicStrategy,
                            description: 'pretty easy',
                            max_grid_size: GRID_SIZES.max },
-                'Andy' => { strategy: Strategy::OffenseDefenseStrategy,
+                'Andy' => { strategy: Strategic::OffenseDefenseStrategy,
                             description: 'a good player',
                             max_grid_size: GRID_SIZES.max },
-                'Carson' => { strategy: Strategy::MinimaxStrategy,
+                'Carson' => { strategy: Strategic::MinimaxStrategy,
                               description: 'unbeatable',
                               max_grid_size: 3 } }
   DEFAULT_COMPUTER = 'Andy'
@@ -379,26 +529,37 @@ class TTTGame
     choose_name
     user_options
 
-    until @board.max_score >= WINS_PER_GAME
-      @board.display_board
+    loop do
+      main_game
+      @board.display_final
 
-      @players.cycle do |player|
-        player.move
-        break if @board.winner_found? || @board.full?
-        @board.display_board if player == @computer
-      end
-
-      @board.display_result
-      prompt(:enter)
-      gets
-      @board.reset
+      break unless play_again?
+      @board.reset_score
     end
-    @board.display_final
+
+    goodbye_message
   end
 
   def welcome_message
     clear_screen
     puts format(@messages[:welcome], { rounds: WINS_PER_GAME.to_s })
+  end
+
+  def goodbye_message
+    prompt(:goodbye)
+  end
+
+  def play_again?
+    answer = nil
+
+    loop do
+      prompt(:play_again)
+      answer = gets.chomp.downcase
+      break if %w(y n).include?(answer)
+      prompt(:invalid)
+    end
+
+    answer == 'y'
   end
 
   def user_options
@@ -425,7 +586,7 @@ class TTTGame
   def choose_name
     prompt(:name)
 
-    name = ''
+    name = nil
     loop do
       name = gets.chomp
       break if name =~ /[A-Za-z]+/
@@ -438,7 +599,7 @@ class TTTGame
   def choose_marker
     prompt(:marker)
 
-    marker = ''
+    marker = nil
     loop do
       marker = gets.chomp
       break if marker !~ /\s/ && marker.length == 1
@@ -449,7 +610,7 @@ class TTTGame
   end
 
   def choose_grid_size
-    grid_size = ''
+    grid_size = nil
 
     loop do
       prompt(:grid, "(#{GRID_SIZES.first} - #{GRID_SIZES.last})")
@@ -462,7 +623,8 @@ class TTTGame
   end
 
   def choose_opponent
-    opponent = ''
+    opponent = nil
+
     prompt(:difficulty)
     display_computers
 
@@ -499,7 +661,7 @@ class TTTGame
     prompt(:first)
     display_players
 
-    first = 0
+    first = nil
     loop do
       first = gets.chomp.to_i
       break if first.between?(1, @players.count + 1)
@@ -511,10 +673,27 @@ class TTTGame
 
   private
 
+  def main_game
+    until @board.max_score >= WINS_PER_GAME
+      @board.display_board
+
+      @players.cycle do |player|
+        player.move
+        break if @board.winner_found? || @board.full?
+        @board.display_board if player == @computer
+      end
+
+      @board.display_result
+      prompt(:enter)
+      gets
+      @board.reset_board
+    end
+  end
+
   def customize_game?
     prompt(:options)
 
-    options = ''
+    options = nil
     loop do
       options = gets.chomp.downcase
       break if %w(y n).include?(options)
