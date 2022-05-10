@@ -94,9 +94,13 @@ module Notifier
     @messages = YAML.load_file('ttt_messages.yml')
   end
 
-  def prompt(action, data='', punctuation='')
+  def prompt(action, data=nil)
     puts
-    puts "=> #{@messages[action]} #{data}#{punctuation}"
+    if data
+      puts "=> #{format(@messages[action], data)}"
+    else
+      puts "=> #{@messages[action]}"
+    end
   end
 
   def clear_screen
@@ -105,6 +109,8 @@ module Notifier
 end
 
 module Displayable
+  include Notifier
+
   EMPTY = ' '
   SQ_WIDTH = 7    # set odd number for centering
   SQ_HEIGHT = 3   # set odd number for centering
@@ -113,24 +119,22 @@ module Displayable
   DIVIDERS = { horiz: "\u2500", vert: "\u2502", intersect: "\u253c" }
 
   def display_board
-    system('clear')
+    clear_screen
     display_header
     draw
   end
 
   def display_result
+    display_board
+
     winner = find_winner
 
     if winner
-      result_message = "#{@players[winner][:name]} wins this round!"
+      prompt(:winner, { wins: @players[winner][:name] })
       @players[winner][:score] += 1
     else
-      result_message = "This round is a tie!"
+      prompt(:tie)
     end
-
-    display_board
-    puts
-    puts result_message
   end
 
   def display_final
@@ -203,8 +207,9 @@ class Board
   attr_accessor :marks, :players
   attr_reader :grid_size
 
-  def initialize
+  def initialize(messages)
     @players = {}
+    @messages = messages
   end
 
   def grid_size=(grid_size)
@@ -261,13 +266,9 @@ class Board
   end
 
   def available_spaces
-    avail = []
-
-    marks.flatten.each_with_index do |val, idx|
-      avail << (idx + 1) if val == EMPTY
-    end
-
-    avail
+    marks.flatten
+         .map.with_index { |m, idx| idx + 1 if m == Board::EMPTY }
+         .compact
   end
 
   def available_spaces_string
@@ -439,17 +440,11 @@ module Strategic
     end
 
     def minimax(depth, computer_turn)
-      if @board.find_winner == @marker
-        return 10 - depth
-      end
+      return 10 - depth if @board.find_winner == @marker
 
-      if @board.find_winner == other_player
-        return -10 + depth
-      end
+      return -10 + depth if @board.find_winner == other_player
 
-      if @board.full?
-        return 0
-      end
+      return 0 if @board.full?
 
       if computer_turn
         best_path = -100
@@ -518,7 +513,7 @@ class TTTGame
   def initialize
     load_messages
 
-    @board = Board.new
+    @board = Board.new(@messages)
     @human = Human.new(@board, @messages)
     @computer = Computer.new(@board)
     @players = [@human, @computer]
@@ -542,7 +537,8 @@ class TTTGame
 
   def welcome_message
     clear_screen
-    puts format(@messages[:welcome], { rounds: WINS_PER_GAME.to_s })
+    prompt(:welcome, { rounds: WINS_PER_GAME.to_s })
+    # puts format(@messages[:welcome], { rounds: WINS_PER_GAME.to_s })
   end
 
   def goodbye_message
@@ -611,9 +607,10 @@ class TTTGame
 
   def choose_grid_size
     grid_size = nil
+    prompt(:grid,
+           { grid_min: GRID_SIZES.first, grid_max: GRID_SIZES.last })
 
     loop do
-      prompt(:grid, "(#{GRID_SIZES.first} - #{GRID_SIZES.last})")
       grid_size = gets.chomp.to_i
       break if GRID_SIZES.include?(grid_size)
       prompt(:invalid)
@@ -677,16 +674,20 @@ class TTTGame
     until @board.max_score >= WINS_PER_GAME
       @board.display_board
 
-      @players.cycle do |player|
-        player.move
-        break if @board.winner_found? || @board.full?
-        @board.display_board if player == @computer
-      end
+      player_turns
 
       @board.display_result
       prompt(:enter)
       gets
       @board.reset_board
+    end
+  end
+
+  def player_turns
+    @players.cycle do |player|
+      player.move
+      break if @board.winner_found? || @board.full?
+      @board.display_board if player == @computer
     end
   end
 
