@@ -5,26 +5,35 @@
 
   GOOD LUCK!
 :name:  What is your name?
+:taken_name: That name is already taken!
+:opponent_name: What name would you like to give this opponent?
 :options: Would you like to configure game options? (y or n)
+:player_type: |
+  What type of player is this opponent?
+  
+  1) Human (requires another user for input)
+  2) Computer
 :marker:  What marker would you like to use on the board?
+:opponent_marker:  What marker would you like this opponent to use on the board?
+:taken_marker: That marker is already taken!
+:num_opponents: |
+  How many opponents would you like to play against? 
+  You can choose up to %{max}
+:single_opponent: For this size grid, you can have 1 opponent.
+:multiple_opponent: Enter the details for opponent %{opponent_number}.
 :first_turn: |
   Who should take the first turn?
-
-  1) You, the player
-  2) The computer
-  3) Let the computer decide!
 :invalid:     Please enter a valid selection
 :grid: |
   The standard grid size for TicTacToe is 3 x 3. How high do you
   want to go? (%{grid_min}-%{grid_max})
-:difficulty:  Which computer opponent can you handle?
+:difficulty:  Choose a level of difficulty for this computer?
 :first:       Which player should go first?
-:select:      Select a square
+:select:      Select a square, %{name}
 :inv_square:  That is not a valid square
 :winner:      Woohoo! %{wins} wins this round!!
 :tie:         It's a tie!
 :enter:       Enter to continue
-:game_winner: The first to five wins is
-:congrats:    Congratulations on your win!!!
+:game_winner: The first to five wins is %{name}!!!
 :play_again:  Would you like to play again? (y or n)
 :goodbye:     Thanks for playing TicTacToe! Goodbye!
