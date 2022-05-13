@@ -1,0 +1,112 @@
+Twenty-one is a game in which a player and a dealer are dealt 2-card hands from a shuffled
+deck, with each player given the option to add additional cards or stop adding
+cards. The winner has the hand that is closest to a point value of 21 without
+going over that value.
+
+nouns: 
+game
+player
+dealer
+card
+hand
+point value
+
+verbs:
+deal
+shuffle
+add (hit)
+stop adding (stay)
+
+class Player
+  def hit
+  end
+
+  def stay
+  end
+  
+  def show_hand
+  end
+end
+
+class Dealer
+  def hit
+  end
+
+  def stay
+  end
+
+  def show_hand
+  end
+
+  def show_partial_hand
+  end
+end
+
+class Hand
+  def score
+  end
+
+  def busted?
+  end
+end
+
+
+
+class TwentyOneGame
+end
+
+class Deck
+  def shuffle
+  end
+
+  def deal
+  end
+end
+
+class Card
+end
+
+class Table
+  def display_hands
+  end
+
+  def winner
+  end
+end
+
+Notes:
+- Table handles the display, messaging, and scoring (too much?)
+- If the deck handles the 'dealing' part, the dealer is essentially just another
+  player, the difference being that the dealer has a strategy and has a hidden
+  card. possibly Dealer < Player or they shared a base class
+- possibly display module, possibly notifier module for all messaging
+
+TwentyOneGame
+- game engine
+- collab: Player, Dealer, Deck, Table
+
+Table
+- display
+- collab: Player, Dealer
+
+Player
+- maintains hand state and makes moves, determines score or bust
+- collab: Deck, Hand
+
+Dealer
+- maintains hand state, makes moves, determines score or bust
+- collab: Deck, Hand
+
+Deck
+- maintains deck state, shuffles, deals
+- collab: Player, Dealer (possibly only Table, if the card is dealt to the table
+  and assigned by the game to the correct player)
+
+Card (possibly Struct)
+- Holds card state
+
+Hand (Struct? or simply an array? could be class if it contains score and bust?
+methods)
+- maintains state of hand
+- collab: Card
+

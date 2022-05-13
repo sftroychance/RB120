@@ -1,41 +1,3 @@
-=begin
-Implementation notes:
-
-1. Incorporated the suggested features:
-    - grid sizes up to 9x9
-    - more than 2 players (for grid sizes over 4x4)
-    - opponents can be human or computer (including multiple computer opponents)
-    - player can customize all names and player marks
-    - player can select who plays first or can request random selection
-    - 5 rounds per game
-    - displays running game score
-    - computer strategies: easy (random), offense/defense, and minimax
-
-2. In addition:
-    - player can accept default settings (3x3 grid, offense/defense computer
-      strategy, default computer name, default computer and player marks)
-      rather than customizing
-    - grids larger than 3x3 show the square numbers within the grid for ease
-      of selection
-    - user prompts are loaded from a .yml file
-    - there is a 1-second sleep after each computer move, which feels more
-      natural, particularly when playing against more than one computer
-      opponent.
-
-3. I'm not chasing after design patterns, but I just read an article discussing
-the Strategy pattern, and it sounded like it would work for implementing the
-computer strategies in this case. I don't know that the pattern is applied
-ideally here, but it gave an interesting perspective on how to organize the
-code.
-
-4. There are 4 Rubocop warnings, three for method length and one for ABCsize.
-(Three relate to the minimax algorithm.) I did study these to try to break
-them down further, but they seem compact and most readable as they are. I can
- see how to break up the #minimax method, but I thought it would be more
-confusing in terms of readability to place the recursive calls in different
-methods. (These cops are skipped in the code.)
-=end
-
 module TTT
   module Notifier
     require 'yaml'
@@ -286,169 +248,195 @@ module TTT
   end
 
   module Strategic
-    class Strategy
-      def move(board, marker)
-        @board = board
-        @marker = marker
+    def set_attributes(board, marker)
+      @board = board
+      @marker = marker
+    end
+
+    private
+
+    attr_reader :board, :marker
+
+    def random_move
+      board.mark_choice(board.available_spaces.sample, marker)
+    end
+
+    def center_move
+      center = board.center_space
+      if board.grid_size.odd? && board.space_empty?(center)
+        board.mark_choice(center, marker)
+        return 1
       end
 
-      private
+      nil
+    end
 
-      attr_reader :board, :marker
-
-      def random_move
-        board.mark_choice(board.available_spaces.sample, marker)
+    def winning_move
+      board.available_spaces.each do |space|
+        board.mark_choice(space, marker)
+        return 1 if board.find_winner == marker
+        board.mark_choice(space, Board::EMPTY)
       end
 
-      def center_move
-        center = board.center_space
-        if board.grid_size.odd? && board.space_empty?(center)
-          board.mark_choice(center, marker)
-          return 1
+      nil
+    end
+
+    def blocking_move
+      board.available_spaces.each do |space|
+        other_players.each do |player|
+          return test_blocks(player, space)
         end
-
-        nil
       end
 
-      def other_players
-        board.players.keys - [marker]
+      nil
+    end
+
+    def test_blocks(player, space)
+      board.mark_choice(space, player)
+
+      if board.find_winner == player
+        board.mark_choice(space, marker)
+        1
+      else
+        board.mark_choice(space, Board::EMPTY)
+        nil
       end
     end
 
-    class BasicStrategy < Strategy
-      def move(board, marker)
-        super
-
+    def offense_defense
+      center_move ||
+        winning_move ||
+        blocking_move ||
         random_move
-      end
     end
 
-    class OffenseDefenseStrategy < Strategy
-      def move(board, marker)
-        super
+    def other_players
+      board.players.keys - [marker]
+    end
+  end
 
-        center_move ||
-          winning_move ||
-          blocking_move ||
-          random_move
-      end
+  class BasicStrategy
+    include Strategic
 
-      private
-
-      def winning_move
-        board.available_spaces.each do |space|
-          board.mark_choice(space, marker)
-          return 1 if board.find_winner == marker
-          board.mark_choice(space, Board::EMPTY)
-        end
-
-        nil
-      end
-
-      # rubocop:disable Metrics/MethodLength
-      def blocking_move
-        board.available_spaces.each do |space|
-          other_players.each do |player|
-            board.mark_choice(space, player)
-
-            if board.find_winner == player
-              board.mark_choice(space, marker)
-              return 1
-            else
-              board.mark_choice(space, Board::EMPTY)
-            end
-          end
-        end
-
-        nil
-      end
-      # rubocop:enable Metrics/MethodLength
+    def initialize(board, marker)
+      set_attributes(board, marker)
     end
 
-    class MinimaxStrategy < Strategy
-      def move(board, marker)
-        super
+    def move
+      random_move
+    end
+  end
 
+  class OffenseDefenseStrategy
+    include Strategic
+
+    def initialize(board, marker)
+      set_attributes(board, marker)
+    end
+
+    def move
+      offense_defense
+    end
+  end
+
+  class MinimaxStrategy
+    include Strategic
+
+    MAX_EMPTY_SPACES = 9
+
+    def initialize(board, marker)
+      set_attributes(board, marker)
+    end
+
+    def move
+      if board.grid_size > 3 && board.available_spaces.size > MAX_EMPTY_SPACES
+        offense_defense
+      else
         center_move ||
           best_move
       end
+    end
 
-      private
+    private
 
-      # rubocop:disable Metrics/MethodLength
-      def best_move
-        best_score = -100
-        best_choice = 0
+    def best_move
+      best_score = -100
+      best_choice = 0
 
-        # shuffle randomizes the computer AI selection
-        # amongst multiple moves with equally highest value
-        board.available_spaces.shuffle.each do |space|
-          board.mark_choice(space, marker)
+      board.available_spaces.shuffle.each do |space|
+        current_score = test_space(space)
 
-          current_score = minimax(0, false)
-
-          board.mark_choice(space, Board::EMPTY)
-
-          if current_score > best_score
-            best_score = current_score
-            best_choice = space
-          end
+        if current_score > best_score
+          best_score = current_score
+          best_choice = space
         end
-
-        board.mark_choice(best_choice, marker)
       end
 
-      # rubocop:disable Metrics/AbcSize
-      def minimax(depth, computer_turn)
-        return 10 - depth if board.find_winner == marker
+      board.mark_choice(best_choice, marker)
+    end
 
-        return -10 + depth if board.find_winner == other_player
+    def test_space(space)
+      board.mark_choice(space, marker)
 
-        return 0 if board.full?
+      current_score = minimax(0, false)
 
-        if computer_turn
-          best_path = -100
+      board.mark_choice(space, Board::EMPTY)
+      current_score
+    end
 
-          board.available_spaces.each do |space|
-            board.mark_choice(space, marker)
+    def minimax(depth, computer_turn)
+      return 10 - depth if board.find_winner == marker
 
-            best_path = [best_path, minimax(depth + 1, !computer_turn)].max
+      return -10 + depth if board.find_winner == other_player
 
-            board.mark_choice(space, Board::EMPTY)
-          end
-        else
-          best_path = 100
+      return 0 if board.full?
 
-          board.available_spaces.each do |space|
-            board.mark_choice(space, other_player)
-
-            best_path = [best_path, minimax(depth + 1, !computer_turn)].min
-
-            board.mark_choice(space, Board::EMPTY)
-          end
-        end
-
-        best_path
+      if computer_turn
+        test_computer_move(computer_turn, depth)
+      else
+        test_opponent_move(computer_turn, depth)
       end
-      # rubocop:enable Metrics/AbcSize
-      # rubocop:enable Metrics/MethodLength
+    end
 
-      def other_player
-        other_players[0]
+    def test_opponent_move(computer_turn, depth)
+      best_path = 100
+
+      board.available_spaces.each do |space|
+        board.mark_choice(space, other_player)
+
+        best_path = [best_path, minimax(depth + 1, !computer_turn)].min
+
+        board.mark_choice(space, Board::EMPTY)
       end
+      best_path
+    end
+
+    def test_computer_move(computer_turn, depth)
+      best_path = -100
+
+      board.available_spaces.each do |space|
+        board.mark_choice(space, marker)
+
+        best_path = [best_path, minimax(depth + 1, !computer_turn)].max
+
+        board.mark_choice(space, Board::EMPTY)
+      end
+      best_path
+    end
+
+    def other_player
+      other_players[0]
     end
   end
 
   class Computer < Player
-    include Strategic
-
-    def initialize(name, marker, strategy, board)
+    def initialize(name, marker, board, strategy)
       super(name, marker, board)
       @strategy = strategy
     end
 
     def move
-      @strategy.move(@board, marker)
+      @strategy.move
       sleep(1)
     end
   end
@@ -461,12 +449,9 @@ module TTT
     WINS_PER_GAME = 5
     GRID_SIZES = (3..9).to_a
     DEFAULT_GRID_SIZE = 3
-    STRATEGIES = { Easy: { strategy: Strategic::BasicStrategy,
-                           max_grid_size: GRID_SIZES.max },
-                   Challenging: { strategy: Strategic::OffenseDefenseStrategy,
-                                  max_grid_size: GRID_SIZES.max },
-                   Impossible?: { strategy: Strategic::MinimaxStrategy,
-                                  max_grid_size: 3 } }
+    STRATEGIES = { Easy: BasicStrategy,
+                   Challenging: OffenseDefenseStrategy,
+                   Impossible?: MinimaxStrategy }
     DEFAULT_COMPUTER_NAME = 'Dallas'
     DEFAULT_HUMAN_MARKER = 'X'
     DEFAULT_COMPUTER_MARKER = 'O'
@@ -477,13 +462,16 @@ module TTT
 
       @taken_names = []
       @taken_markers = []
+    end
 
+    def configure
       @player_name = choose_name(is_main_player: true)
 
       customize_game? ? choose_custom_options : choose_default_options
 
       create_board
-      create_players
+      create_main_player
+      create_opponents
 
       choose_first_turn
       board.register_players(@players)
@@ -516,7 +504,7 @@ module TTT
 
       options[:opponents] = [{ type: 'computer',
                                name: DEFAULT_COMPUTER_NAME,
-                               strategy: Strategic::OffenseDefenseStrategy,
+                               strategy: OffenseDefenseStrategy,
                                marker: DEFAULT_COMPUTER_MARKER }]
     end
 
@@ -658,28 +646,16 @@ module TTT
     def choose_difficulty
       prompt(:difficulty)
 
-      levels = difficulty_levels
-
-      levels.each { |k, v| puts "#{k}) #{v}" }
+      STRATEGIES.keys.each_with_index { |k, idx| puts "#{idx + 1}. #{k}" }
 
       difficulty = nil
       loop do
         difficulty = gets.chomp.to_i
-        break if difficulty.between?(1, levels.size)
+        break if difficulty.between?(1, STRATEGIES.size)
         prompt(:invalid)
       end
 
-      STRATEGIES[levels[difficulty].to_sym][:strategy]
-    end
-
-    def difficulty_levels
-      levels = {}
-
-      STRATEGIES.select { |_, v| options[:grid_size] <= v[:max_grid_size] }
-                .keys
-                .each_with_index { |k, idx| levels[idx + 1] = k }
-
-      levels
+      STRATEGIES[STRATEGIES.keys[difficulty - 1]]
     end
 
     def create_board
@@ -687,19 +663,20 @@ module TTT
     end
 
     def create_main_player
-      Human.new(options[:player][:name], options[:player][:marker], board)
+      @players = [Human.new(options[:player][:name],
+                            options[:player][:marker],
+                            board)]
     end
 
-    def create_players
-      @players = [create_main_player]
-
+    def create_opponents
       options[:opponents].each do |opponent|
-        @players << if opponent[:type] == 'human'
-                      Human.new(opponent[:name], opponent[:marker], board)
-                    else
-                      Computer.new(opponent[:name], opponent[:marker],
-                                   opponent[:strategy].new, board)
-                    end
+        @players <<
+          if opponent[:type] == 'human'
+            Human.new(opponent[:name], opponent[:marker], board)
+          else
+            Computer.new(opponent[:name], opponent[:marker], board,
+                         opponent[:strategy].new(board, opponent[:marker]))
+          end
       end
     end
 
@@ -732,82 +709,89 @@ module TTT
       end
     end
   end
+
+  class TTTGame
+    include TTT
+    include Notifier
+
+    def initialize
+      load_messages
+    end
+
+    def play
+      welcome_and_configure
+
+      loop do
+        main_game
+        board.display_final
+
+        break unless play_again?
+        board.reset_score
+      end
+
+      goodbye_message
+    end
+
+    private
+
+    def welcome_and_configure
+      welcome_message
+
+      @config = Configuration.new
+      @config.configure
+
+      @board = @config.board
+      @players = @config.players
+    end
+
+    attr_reader :board
+
+    def welcome_message
+      clear_screen
+      prompt(:welcome, { rounds: Configuration::WINS_PER_GAME.to_s })
+    end
+
+    def goodbye_message
+      prompt(:goodbye)
+    end
+
+    def play_again?
+      answer = nil
+
+      loop do
+        prompt(:play_again)
+        answer = gets.chomp.downcase
+        break if %w(y n).include?(answer)
+        prompt(:invalid)
+      end
+
+      answer == 'y'
+    end
+
+    def main_game
+      until board.max_score >= Configuration::WINS_PER_GAME
+        board.display_board
+
+        player_turns
+
+        board.display_result
+
+        prompt(:enter)
+        gets
+
+        @players.rotate!
+        board.reset_board
+      end
+    end
+
+    def player_turns
+      @players.cycle do |player|
+        player.move
+        break if board.winner_found? || board.full?
+        board.display_board
+      end
+    end
+  end
 end
 
-class TTTGame
-  include TTT
-  include Notifier
-
-  def initialize
-    load_messages
-    welcome_message
-
-    @config = Configuration.new
-
-    @board = @config.board
-    @players = @config.players
-  end
-
-  def play
-    loop do
-      main_game
-      board.display_final
-
-      break unless play_again?
-      board.reset_score
-    end
-
-    goodbye_message
-  end
-
-  private
-
-  attr_reader :board
-
-  def welcome_message
-    clear_screen
-    prompt(:welcome, { rounds: Configuration::WINS_PER_GAME.to_s })
-  end
-
-  def goodbye_message
-    prompt(:goodbye)
-  end
-
-  def play_again?
-    answer = nil
-
-    loop do
-      prompt(:play_again)
-      answer = gets.chomp.downcase
-      break if %w(y n).include?(answer)
-      prompt(:invalid)
-    end
-
-    answer == 'y'
-  end
-
-  def main_game
-    until board.max_score >= Configuration::WINS_PER_GAME
-      board.display_board
-
-      player_turns
-
-      board.display_result
-
-      prompt(:enter)
-      gets
-
-      board.reset_board
-    end
-  end
-
-  def player_turns
-    @players.cycle do |player|
-      player.move
-      break if board.winner_found? || board.full?
-      board.display_board
-    end
-  end
-end
-
-TTTGame.new.play
+TTT::TTTGame.new.play
