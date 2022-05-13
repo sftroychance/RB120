@@ -31,10 +31,22 @@ module Strategic, which is included in the three Strategy classes. This
 rearrangement allows for minimax to be implemented at large grid sizes
 (offense-defense strategy will be used until 9 or fewer spaces remain; the
 minimax algorithm is too inefficient to calculate more than that many moves
-ahead).
+ahead). Minimax is still slower with multiple players at larger grid sizes,
+however.
 
 3. Long methods have been split up.
 
 4. Configuration#initialize had too much going on (initialize should be
 restricted to mainly variable initialization), so added a #configure method to
 perform the configuration.
+
+5. Removed dependencies on `Board` in `Player` classes. For the `Human` player
+move, the board state and grid size are sent as arguments to the method, and
+then `TTTGame` executes the move with the `Board` object. For the `Computer`
+player, the dependency has been moved to the strategy classes as dependency
+injection, which is loosely coupled (although those classes call on several
+methods of `Board`, so it might not be particularly loose). So dependencies are
+not eliminated, but they are reduced, and those that exist make sense (a
+`Computer` has a `Strategy`, and `Strategy` needs access to `Board`). `Computer`
+has a dependency on `Strategy` (also injected), and this coupling is more loose
+because `Computer` calls only the `#move` method on `Strategy`.

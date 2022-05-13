@@ -195,6 +195,12 @@ module TTT
       grid_size**2 / 2 + 1
     end
 
+    def human_move_args
+      { available_spaces: available_spaces,
+        available_spaces_string: available_spaces_string,
+        grid_size: grid_size }
+    end
+
     private
 
     def init_marks
@@ -213,38 +219,38 @@ module TTT
   class Player
     attr_reader :name, :marker
 
-    def initialize(name, marker, board)
+    def initialize(name, marker)
       @name = name
       @marker = marker
-      @board = board
     end
-
-    private
-
-    attr_reader :board
   end
 
   class Human < Player
     include Notifier
 
     def initialize(name, marker, board)
-      super(name, marker, board)
+      super(name, marker)
+      @board = board
       load_messages
     end
 
-    def move
+    def move(board_args)
       choice = nil
 
       loop do
         prompt(:select, { name: name })
-        puts board.available_spaces_string if board.grid_size == 3
+        puts board_args[:available_spaces_string] if board_args[:grid_size] == 3
         choice = gets.chomp.to_i
-        break if board.available_spaces.include?(choice)
+        break if board_args[:available_spaces].include?(choice)
         prompt(:inv_square)
       end
 
-      board.mark_choice(choice, @marker)
+      choice
     end
+
+    private
+
+    attr_reader :board
   end
 
   module Strategic
@@ -284,7 +290,7 @@ module TTT
     def blocking_move
       board.available_spaces.each do |space|
         other_players.each do |player|
-          return test_blocks(player, space)
+          return 1 if test_blocks(player, space)
         end
       end
 
@@ -296,11 +302,12 @@ module TTT
 
       if board.find_winner == player
         board.mark_choice(space, marker)
-        1
+        return 1
       else
         board.mark_choice(space, Board::EMPTY)
-        nil
       end
+
+      nil
     end
 
     def offense_defense
@@ -430,8 +437,8 @@ module TTT
   end
 
   class Computer < Player
-    def initialize(name, marker, board, strategy)
-      super(name, marker, board)
+    def initialize(name, marker, strategy)
+      super(name, marker)
       @strategy = strategy
     end
 
@@ -452,6 +459,7 @@ module TTT
     STRATEGIES = { Easy: BasicStrategy,
                    Challenging: OffenseDefenseStrategy,
                    Impossible?: MinimaxStrategy }
+    DEFAULT_STRATEGY = OffenseDefenseStrategy
     DEFAULT_COMPUTER_NAME = 'Dallas'
     DEFAULT_HUMAN_MARKER = 'X'
     DEFAULT_COMPUTER_MARKER = 'O'
@@ -504,7 +512,7 @@ module TTT
 
       options[:opponents] = [{ type: 'computer',
                                name: DEFAULT_COMPUTER_NAME,
-                               strategy: OffenseDefenseStrategy,
+                               strategy: DEFAULT_STRATEGY,
                                marker: DEFAULT_COMPUTER_MARKER }]
     end
 
@@ -674,7 +682,7 @@ module TTT
           if opponent[:type] == 'human'
             Human.new(opponent[:name], opponent[:marker], board)
           else
-            Computer.new(opponent[:name], opponent[:marker], board,
+            Computer.new(opponent[:name], opponent[:marker],
                          opponent[:strategy].new(board, opponent[:marker]))
           end
       end
@@ -786,7 +794,13 @@ module TTT
 
     def player_turns
       @players.cycle do |player|
-        player.move
+        if player.class == Human
+          choice = player.move(board.human_move_args)
+          board.mark_choice(choice, player.marker)
+        else
+          player.move
+        end
+
         break if board.winner_found? || board.full?
         board.display_board
       end
