@@ -18,27 +18,16 @@ add (hit)
 stop adding (stay)
 
 class Player
-  def hit
+  def hit?
   end
 
-  def stay
-  end
-  
-  def show_hand
+  to_s
+    # shows hand
   end
 end
 
-class Dealer
-  def hit
-  end
-
-  def stay
-  end
-
-  def show_hand
-  end
-
-  def show_partial_hand
+class Dealer < Player
+  def hit?
   end
 end
 
@@ -50,63 +39,154 @@ class Hand
   end
 end
 
-
-
 class TwentyOneGame
+  def play
+    welcome_message
+    deal_hands
+    loop do
+      display_hands
+      player_turns
+      display_result
+      break unless play_again?
+    end
+    display_game_result
+    goodbye_message
+  end
+
+  def deal_hands
+  end
+
+  def player_turns
+  end 
+
+  def deal_card
+  end
+
+
 end
 
 class Deck
+  def initialize
+  # add_deck twice (start with two decks in array)
+  end
+  
+  def add_deck
+  end
+
   def shuffle
   end
 
   def deal
+  #at end, add_deck if deck.size < 52
   end
 end
 
 class Card
 end
 
-class Table
+class Display
+  def welcome_message
+  end
+
+  def goodbye_message
+  end
+
   def display_hands
   end
 
-  def winner
+  def display_hand_result
+  end
+
+  def display_game_result
   end
 end
 
-Notes:
-- Table handles the display, messaging, and scoring (too much?)
-- If the deck handles the 'dealing' part, the dealer is essentially just another
-  player, the difference being that the dealer has a strategy and has a hidden
-  card. possibly Dealer < Player or they shared a base class
-- possibly display module, possibly notifier module for all messaging
-
 TwentyOneGame
 - game engine
-- collab: Player, Dealer, Deck, Table
+- collab: Player, Dealer, Deck, Display
 
-Table
-- display
-- collab: Player, Dealer
+Display
+- displays hands, game results, and messages
+- collab: 
 
 Player
-- maintains hand state and makes moves, determines score or bust
-- collab: Deck, Hand
+- maintains hand states, hits or stays, determines score or bust
+- collab: Hand
 
 Dealer
-- maintains hand state, makes moves, determines score or bust
-- collab: Deck, Hand
+- maintains hand state, hits or stays, determines score or bust
+- collab: Hand
 
 Deck
-- maintains deck state, shuffles, deals
-- collab: Player, Dealer (possibly only Table, if the card is dealt to the table
-  and assigned by the game to the correct player)
+- maintains deck state, deals, shuffles
+- collab: Card
 
 Card (possibly Struct)
 - Holds card state
 
-Hand (Struct? or simply an array? could be class if it contains score and bust?
-methods)
+Hand
 - maintains state of hand
 - collab: Card
+
+game:
+   - display initialized
+   - player initialized
+   - dealer initialized
+   - deck initialized
+     - cards initialized
+     - cards shuffled
+   - welcome_message
+   - deal_hands
+   - loop
+     - show_dealer_hand? = false
+     - cycle players
+       - show_dealer_hand? = true if dealer
+       - display hands
+       - deal card if hit?
+       - update display
+       - break if bust? 
+       - display game result
+       - break unless play again
+   - display game result
+
+notes on hand display:
+- previous version, the screen would readjust after every card is dealt (a new
+  line was added), which wasn't a great look (looks better if data entry is
+  always in the same place).
+
+  - horizontal card display? 
+
+  - use unicode characters for suits, perhaps at card level (since they don't
+    matter for scoring).
+  
+  - perhaps color (hearts and diamonds) (could do only red suits)
+
+  - display as cards (would need to build array of line-by-line card formats)
+
++-----+  this would accommodate 11 cards across with a terminal size of 80
+|6    |
+|     |
+|  S  |
+|     |
+|    6|
++-----+
+
+Hearts: \u2665
+Diamonds: \u2666
+Spades: \u2660
+Clubs: \u2663
+
+red: \e[31m  \e[0m
+
+unicode box:
+UL corner: \u256D
+UR corner: \u256E
+LL corner: \u2570
+LR corner: \u256F
+horiz: \u2500
+vert: \u2502
+
+cards are a multidim array
+add top and bottom lines (unshift/push)
+map to add L and R borders
 

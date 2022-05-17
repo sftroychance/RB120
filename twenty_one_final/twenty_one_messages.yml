@@ -1,0 +1,17 @@
+:welcome: |-
+  Welcome to Twenty-One! 
+
+  Play as many rounds with the computer as you'd like
+  and let's see who comes out ahead!
+
+  Good Luck!
+
+:enter:       Enter to continue
+:hitorstay:   Do you want to Hit (h) or Stay (s)?
+:invalid:     Please enter a valid choice
+:play_again:  Do you want to play again? (y or n)
+:winner:      wins this hand!
+:game_winner: wins the game!!!
+:tie:         The game is tied!
+:congrats:    Congratulations!!
+:goodbye:     Thanks for playing Twenty-One! Goodbye!
