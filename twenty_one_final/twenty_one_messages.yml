@@ -1,17 +1,15 @@
-:welcome: |-
-  Welcome to Twenty-One! 
-
-  Play as many rounds with the computer as you'd like
-  and let's see who comes out ahead!
-
-  Good Luck!
-
+:welcome: |
+  Welcome to Twenty-One!
+  
+  The player that can get closest to 21 points without going over wins!
+  
+  GOOD LUCK!
+:invalid: Please make a valid choice.
+:hit_or_stay:  Would you like to (h)it or (s)tay?
+:winner:      "%{wins} wins this hand!!"
+:nobody_wins: Nobody wins this hand.
 :enter:       Enter to continue
-:hitorstay:   Do you want to Hit (h) or Stay (s)?
-:invalid:     Please enter a valid choice
-:play_again:  Do you want to play again? (y or n)
-:winner:      wins this hand!
-:game_winner: wins the game!!!
-:tie:         The game is tied!
-:congrats:    Congratulations!!
+:game_winner: "%{winner} wins the game!!!"
+:game_tie:  The game is a tie!
+:play_again:  Would you like to play again? (y or n)
 :goodbye:     Thanks for playing Twenty-One! Goodbye!
