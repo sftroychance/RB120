@@ -1,14 +1,18 @@
 module TwentyOne
   module Displayable
-    BORDERS = { lu: "\u256D", ru: "\u256E", ll: "\u2570", rl: "\u256F",
-                horiz: "\u2500", vert: "\u2502" }
+    CARD_WIDTH = 5
+
+    HORIZ_LINE = "\u2500"
+    VERT_LINE = "\u2502"
+    BORDERS = { top: "\u256D" + CARD_WIDTH * HORIZ_LINE + "\u256E",
+                bottom: "\u2570" + CARD_WIDTH * HORIZ_LINE + "\u256F" }
+
     SUIT_CHARS = { hearts: "\e[31m\u2665\e[0m",
                    diamonds: "\e[31m\u2666\e[0m",
                    spades: "\u2660",
                    clubs: "\u2663" }
     L_HEADER = 20
     R_HEADER = 40
-    CARD_WIDTH = 5
 
     def welcome_message
       clear_screen
@@ -30,7 +34,8 @@ module TwentyOne
 
     def display_header
       puts ('*' * L_HEADER) + "SCORE".center(R_HEADER)
-      puts "Twenty-One".center(L_HEADER) + "Dealer: #{@game_score[:Dealer]}".center(R_HEADER)
+      puts "Twenty-One".center(L_HEADER) +
+           "Dealer: #{@game_score[:Dealer]}".center(R_HEADER)
       puts ('*' * L_HEADER) + "Player: #{@game_score[:Player]}".center(R_HEADER)
       puts
     end
@@ -43,14 +48,14 @@ module TwentyOne
       display_cards(@player)
     end
 
-    def display_cards(player)
+    def display_cards(player) # move to Hand#display_hand
       cards = []
       player.hand.cards.each_with_index do |card, idx|
-        if player.class == Dealer && @hide_dealer && idx == 1
-          cards << mystery_card(format_card(card))
-        else
-          cards << format_card(card)
-        end
+        cards << if player.class == Dealer && @hide_dealer && idx == 1
+                   mystery_card(format_card(card))
+                 else
+                   format_card(card)
+                 end
       end
 
       format_bust_card(cards) if player.hand.busted?
@@ -58,33 +63,33 @@ module TwentyOne
       puts rack_cards(cards)
     end
 
-    def format_card(card)
-      blank = ' ' * CARD_WIDTH
+    def format_card(card) # move to Card#format_card
+      face_pad = CARD_WIDTH - card[:face].length
+      suit_pad = CARD_WIDTH / 2
+      face = color_face(card)
 
-      top_face = color_face(card) + ' ' * (CARD_WIDTH - card[:face].length)
-      bottom_face = ' ' * (CARD_WIDTH - card[:face].length) + color_face(card)
+      blank_line = ' ' * CARD_WIDTH
 
-      suit = ' ' * (CARD_WIDTH / 2) + SUIT_CHARS[card[:suit]] +
-        ' ' * (CARD_WIDTH / 2)
+      top_face_line = face + ' ' * face_pad
+      bottom_face_line = ' ' * face_pad + face
 
-      [top_face, blank, suit, blank, bottom_face]
+      suit_line = ' ' * suit_pad + SUIT_CHARS[card[:suit]] + ' ' * suit_pad
+
+      [top_face_line, blank_line, suit_line, blank_line, bottom_face_line]
     end
 
     def add_borders(cards)
-      top = BORDERS[:lu] + BORDERS[:horiz] * CARD_WIDTH + BORDERS[:ru]
-      bottom = BORDERS[:ll] + BORDERS[:horiz] * CARD_WIDTH + BORDERS[:rl]
-
-      cards.map! do |card|
+      cards.each do |card|
         card.map! do |line|
-          BORDERS[:vert] + line + BORDERS[:vert]
+          VERT_LINE + line + VERT_LINE
         end
 
-        card.unshift(top)
-        card.push(bottom)
+        card.unshift(BORDERS[:top])
+        card.push(BORDERS[:bottom])
       end
     end
 
-    def mystery_card(card)
+    def mystery_card(card) #move to Card#mystery_card
       card[0] = '??   '
       card[2] = '  ?  '
       card[4] = '   ??'
@@ -92,19 +97,19 @@ module TwentyOne
       card
     end
 
-    def format_bust_card(cards)
-      cards.last[1] = BORDERS[:horiz] * 5
+    def format_bust_card(cards) # move to Card#format_bust_card
+      cards.last[1] = HORIZ_LINE * 5
       cards.last[2] = 'BUST!'
-      cards.last[3] = BORDERS[:horiz] * 5
+      cards.last[3] = HORIZ_LINE * 5
     end
 
-    def rack_cards(cards)
+    def rack_cards(cards) # move to Hand#rack_cards
       add_borders(cards)
 
       cards.transpose.map { |lines| lines.join(' ') }
     end
 
-    def color_face(card)
+    def color_face(card) # move to Card#color_face
       if [:hearts, :diamonds].include?(card[:suit])
         "\e[31m" + card[:face] + "\e[0m"
       else
@@ -186,7 +191,7 @@ module TwentyOne
 
   class Deck
     SUITS = [:spades, :clubs, :hearts, :diamonds]
-    FACES = ('2'..'10').to_a + ['J', 'Q', 'K', 'A']
+    FACES = ('2'..'10').to_a + %w(J Q K A)
 
     def initialize
       @card = Struct.new(:face, :suit, :value)
@@ -305,6 +310,16 @@ module TwentyOne
     end
   end
 
+  class Card
+    attr_accessor :face, :suit, :value
+
+    def initialize(face, suit, value)
+      @face = face
+      @suit = suit
+      @value = value
+    end
+  end
+
   class TwentyOneGame
     include Displayable
     include Notifier
@@ -361,11 +376,9 @@ module TwentyOne
       loop do
         display_table
 
-        if !player.hand.busted? && player.hit?
-          player.hand.add([@deck.deal_card])
-        else
-          break
-        end
+        break unless !player.hand.busted? && player.hit?
+
+        player.hand.add([@deck.deal_card])
 
         sleep(1) if player.class == Dealer
       end
@@ -377,7 +390,7 @@ module TwentyOne
       loop do
         prompt(:play_again)
         choice = gets.chomp.downcase
-        break if ['y', 'n'].include?(choice)
+        break if %w(y n).include?(choice)
         prompt(:invalid)
       end
 
