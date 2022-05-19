@@ -4,6 +4,9 @@
   The player that can get closest to 21 points without going over wins!
   
   GOOD LUCK!
+:name: What is your name?
+:howdy: Howdy, %{name}!
+:dealer_name: Your dealer is %{dealer}!
 :invalid: Please make a valid choice.
 :hit_or_stay:  Would you like to (h)it or (s)tay?
 :winner:      "%{wins} wins this hand!!"

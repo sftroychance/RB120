@@ -1,16 +1,5 @@
 module TwentyOne
   module Displayable
-    CARD_WIDTH = 5
-
-    HORIZ_LINE = "\u2500"
-    VERT_LINE = "\u2502"
-    BORDERS = { top: "\u256D" + CARD_WIDTH * HORIZ_LINE + "\u256E",
-                bottom: "\u2570" + CARD_WIDTH * HORIZ_LINE + "\u256F" }
-
-    SUIT_CHARS = { hearts: "\e[31m\u2665\e[0m",
-                   diamonds: "\e[31m\u2666\e[0m",
-                   spades: "\u2660",
-                   clubs: "\u2663" }
     L_HEADER = 20
     R_HEADER = 40
 
@@ -33,114 +22,51 @@ module TwentyOne
     private
 
     def display_header
-      puts ('*' * L_HEADER) + "SCORE".center(R_HEADER)
-      puts "Twenty-One".center(L_HEADER) +
-           "Dealer: #{@game_score[:Dealer]}".center(R_HEADER)
-      puts ('*' * L_HEADER) + "Player: #{@game_score[:Player]}".center(R_HEADER)
-      puts
+      header = []
+      header << ('*' * L_HEADER) + "SCORE".center(R_HEADER)
+      header << "Twenty-One".center(L_HEADER) +
+                "#{@dealer.name}: #{@game_score[:Dealer]}".center(R_HEADER)
+      header << ('*' * L_HEADER) +
+                "#{@player.name}: #{@game_score[:Player]}".center(R_HEADER)
+
+      puts header
     end
 
     def display_hands
-      puts "Dealer:"
-      display_cards(@dealer)
       puts
-      puts "Player:"
-      display_cards(@player)
-    end
+      puts "#{@dealer.name}:"
+      @dealer.show_hand
 
-    def display_cards(player) # move to Hand#display_hand
-      cards = []
-      player.hand.cards.each_with_index do |card, idx|
-        cards << if player.class == Dealer && @hide_dealer && idx == 1
-                   mystery_card(format_card(card))
-                 else
-                   format_card(card)
-                 end
-      end
-
-      format_bust_card(cards) if player.hand.busted?
-
-      puts rack_cards(cards)
-    end
-
-    def format_card(card) # move to Card#format_card
-      face_pad = CARD_WIDTH - card[:face].length
-      suit_pad = CARD_WIDTH / 2
-      face = color_face(card)
-
-      blank_line = ' ' * CARD_WIDTH
-
-      top_face_line = face + ' ' * face_pad
-      bottom_face_line = ' ' * face_pad + face
-
-      suit_line = ' ' * suit_pad + SUIT_CHARS[card[:suit]] + ' ' * suit_pad
-
-      [top_face_line, blank_line, suit_line, blank_line, bottom_face_line]
-    end
-
-    def add_borders(cards)
-      cards.each do |card|
-        card.map! do |line|
-          VERT_LINE + line + VERT_LINE
-        end
-
-        card.unshift(BORDERS[:top])
-        card.push(BORDERS[:bottom])
-      end
-    end
-
-    def mystery_card(card) #move to Card#mystery_card
-      card[0] = '??   '
-      card[2] = '  ?  '
-      card[4] = '   ??'
-
-      card
-    end
-
-    def format_bust_card(cards) # move to Card#format_bust_card
-      cards.last[1] = HORIZ_LINE * 5
-      cards.last[2] = 'BUST!'
-      cards.last[3] = HORIZ_LINE * 5
-    end
-
-    def rack_cards(cards) # move to Hand#rack_cards
-      add_borders(cards)
-
-      cards.transpose.map { |lines| lines.join(' ') }
-    end
-
-    def color_face(card) # move to Card#color_face
-      if [:hearts, :diamonds].include?(card[:suit])
-        "\e[31m" + card[:face] + "\e[0m"
-      else
-        card[:face]
-      end
+      puts
+      puts "#{@player.name}:"
+      @player.show_hand
     end
 
     def display_hand_result
       winner = hand_winner
-
       update_score(winner) if winner
 
       display_table
 
-      if winner
-        prompt(:winner, { wins: winner })
-      else
-        prompt(:nobody_wins)
-      end
+      name = winner_name(winner)
+
+      winner ? prompt(:winner, { wins: name }) : prompt(:nobody_wins)
 
       puts
+    end
+
+    def winner_name(winner)
+      case winner
+      when :Dealer then @dealer.name
+      when :Player then @player.name
+      when :Nobody then 'Nobody'
+      end
     end
 
     def display_game_result
       display_table
 
-      if game_winner == :Nobody
-        prompt(:game_tie)
-      else
-        prompt(:game_winner, { winner: game_winner })
-      end
+      prompt(:game_winner, { winner: winner_name(game_winner) })
     end
 
     def hand_winner
@@ -163,7 +89,7 @@ module TwentyOne
       if @game_score.values.uniq.size == 1
         :Nobody
       else
-        @game_score.max_by { |_, v| v }.first.to_s
+        @game_score.max_by { |_, v| v }.first
       end
     end
   end
@@ -194,7 +120,6 @@ module TwentyOne
     FACES = ('2'..'10').to_a + %w(J Q K A)
 
     def initialize
-      @card = Struct.new(:face, :suit, :value)
       @deck = []
     end
 
@@ -204,7 +129,7 @@ module TwentyOne
       FACES.each do |face|
         SUITS.each do |suit|
           value = card_value(face)
-          new_deck << @card.new(face, suit, value)
+          new_deck << Card.new(face, suit, value)
         end
       end
 
@@ -232,14 +157,162 @@ module TwentyOne
     end
   end
 
-  class Player
-    include Notifier
+  class Card
+    CARD_WIDTH = 7 # set to odd value for card centering
 
-    attr_accessor :hand
+    SUIT_CHARS = { hearts: "\e[31m\u2665\e[0m",
+                   diamonds: "\e[31m\u2666\e[0m",
+                   spades: "\u2660",
+                   clubs: "\u2663" }
+
+    attr_accessor :face, :suit, :value
+
+    def initialize(face, suit, value)
+      @face = face
+      @suit = suit
+      @value = value
+    end
+
+    def format_card
+      face_pad = CARD_WIDTH - face.length
+      suit_pad = CARD_WIDTH / 2
+      display_face = color_face
+
+      blank_line = ' ' * CARD_WIDTH
+
+      top_face_line = display_face + ' ' * face_pad
+      bottom_face_line = ' ' * face_pad + display_face
+
+      suit_line = ' ' * suit_pad + SUIT_CHARS[suit] + ' ' * suit_pad
+
+      [top_face_line, blank_line, suit_line, blank_line, bottom_face_line]
+    end
+
+    def mystery_card
+      new_card = format_card
+      new_card[0] = '??'.ljust(CARD_WIDTH)
+      new_card[2] = '?'.center(CARD_WIDTH)
+      new_card[4] = '??'.rjust(CARD_WIDTH)
+
+      new_card
+    end
+
+    def color_face
+      if [:hearts, :diamonds].include?(suit)
+        "\e[31m" + face + "\e[0m"
+      else
+        face
+      end
+    end
+  end
+
+  class Hand
+    CARD_WIDTH = Card::CARD_WIDTH
+
+    HORIZ_LINE = "\u2500"
+    VERT_LINE = "\u2502"
+    BORDERS = { top: "\u256D" + HORIZ_LINE * CARD_WIDTH + "\u256E",
+                bottom: "\u2570" + HORIZ_LINE * CARD_WIDTH + "\u256F" }
+
+    MAX_POINTS = 21
+
+    def initialize
+      @cards = []
+    end
+
+    def score
+      score = @cards.inject(0) { |sum, card| sum + card.value }
+
+      ace_count = @cards.select { |card| card.face == 'A' }
+                        .size
+
+      ace_count.times { score -= 10 if score > MAX_POINTS }
+
+      score
+    end
+
+    def busted?
+      score > MAX_POINTS
+    end
+
+    def add(new_cards)
+      @cards += new_cards
+    end
+
+    def reset
+      @cards = []
+    end
+
+    def display_cards(hide_card = false)
+      @display_cards = []
+      @cards.each_with_index do |card, idx|
+        @display_cards << if hide_card && idx == 1
+                            card.mystery_card
+                          else
+                            card.format_card
+                          end
+      end
+
+      format_bust_card if busted?
+
+      puts card_spread
+    end
+
+    private
+
+    def format_bust_card
+      @display_cards.last[1] = HORIZ_LINE * CARD_WIDTH
+      @display_cards.last[2] = 'BUST!'.center(CARD_WIDTH)
+      @display_cards.last[3] = HORIZ_LINE * CARD_WIDTH
+    end
+
+    def card_spread
+      add_borders
+
+      @display_cards.transpose.map { |lines| lines.join(' ') }
+    end
+
+    def add_borders
+      @display_cards.each do |card|
+        card.map! do |line|
+          VERT_LINE + line + VERT_LINE
+        end
+
+        card.unshift(BORDERS[:top])
+        card.push(BORDERS[:bottom])
+      end
+    end
+  end
+
+  class Participant
+    attr_accessor :hand, :name
 
     def initialize
       @hand = Hand.new
-      @messages = load_messages
+    end
+  end
+
+  class Player < Participant
+    include Notifier
+
+    def initialize
+      load_messages
+      super
+    end
+
+    def set_name
+      name = nil
+
+      loop do
+        prompt(:name)
+        name = gets.chomp
+        break if name =~ /[A-Za-z]+/
+        prompt(:invalid)
+      end
+
+      prompt(:howdy, { name: name })
+
+      @name = name
     end
 
     def hit?
@@ -254,69 +327,32 @@ module TwentyOne
 
       choice == 'h'
     end
+
+    def show_hand
+      hand.display_cards
+    end
   end
 
-  class Dealer < Player
+  class Dealer < Participant
+    COMPUTERS = %w(Hal Primus Tobor Siri)
     STAY_SCORE = 17
 
+    attr_accessor :hide_hand
+
     def initialize
-      @hand = Hand.new
+      super
+    end
+
+    def set_name
+      @name = COMPUTERS.sample
     end
 
     def hit?
       @hand.score < STAY_SCORE
     end
-  end
 
-  class Hand
-    MAX_POINTS = 21
-
-    attr_reader :cards
-
-    def initialize
-      @cards = []
-    end
-
-    def score
-      score = @cards.inject(0) { |sum, card| sum + card[:value] }
-
-      score > MAX_POINTS ? reduce_aces(score) : score
-    end
-
-    def busted?
-      score > MAX_POINTS
-    end
-
-    def add(cards)
-      @cards += cards
-    end
-
-    def reset
-      @cards = []
-    end
-
-    private
-
-    def reduce_aces(score)
-      aces = @cards.select { |card| card[:face] == 'A' }
-                   .count
-
-      until score <= MAX_POINTS || aces == 0
-        score -= 10
-        aces -= 1
-      end
-
-      score
-    end
-  end
-
-  class Card
-    attr_accessor :face, :suit, :value
-
-    def initialize(face, suit, value)
-      @face = face
-      @suit = suit
-      @value = value
+    def show_hand
+      hand.display_cards(@hide_hand)
     end
   end
 
@@ -325,21 +361,22 @@ module TwentyOne
     include Notifier
 
     def initialize
-      @messages = load_messages
+      load_messages
+
       @deck = Deck.new
       @player = Player.new
       @dealer = Dealer.new
 
       @game_score = { Player: 0, Dealer: 0 }
-      @hide_dealer = true
     end
 
     def play
-      welcome_message
+      welcome
 
       loop do
         deal_hands
         player_turns
+
         display_hand_result
 
         break unless play_again?
@@ -352,17 +389,29 @@ module TwentyOne
 
     private
 
+    def welcome
+      welcome_message
+
+      @player.set_name
+      @dealer.set_name
+
+      prompt(:dealer_name, { dealer: @dealer.name })
+      puts
+      prompt(:enter)
+      gets
+    end
+
     def deal_hands
       @player.hand.add(@deck.deal_hand)
       @dealer.hand.add(@deck.deal_hand)
     end
 
     def player_turns
-      @hide_dealer = true
+      @dealer.hide_hand = true
 
       take_turn(@player)
 
-      @hide_dealer = false
+      @dealer.hide_hand = false
 
       if @player.hand.busted?
         display_table
