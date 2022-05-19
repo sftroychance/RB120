@@ -59,24 +59,29 @@ module TwentyOne
       case winner
       when :Dealer then @dealer.name
       when :Player then @player.name
-      when :Nobody then 'Nobody'
       end
     end
 
     def display_game_result
       display_table
 
-      prompt(:game_winner, { winner: winner_name(game_winner) })
+      winner = game_winner
+
+      if winner == :Nobody
+        prompt(:game_tie)
+      else
+        prompt(:game_winner, { winner: winner_name(winner) })
+      end
     end
 
     def hand_winner
-      if @player.hand.busted?
+      if @player.busted?
         :Dealer
-      elsif @dealer.hand.busted?
+      elsif @dealer.busted?
         :Player
-      elsif @dealer.hand.score > @player.hand.score
+      elsif @dealer.score > @player.score
         :Dealer
-      elsif @player.hand.score > @dealer.hand.score
+      elsif @player.score > @dealer.score
         :Player
       end
     end
@@ -290,6 +295,22 @@ module TwentyOne
     def initialize
       @hand = Hand.new
     end
+
+    def busted?
+      hand.busted?
+    end
+
+    def score
+      hand.score
+    end
+
+    def add(cards)
+      hand.add(cards)
+    end
+
+    def reset
+      hand.reset
+    end
   end
 
   class Player < Participant
@@ -402,8 +423,8 @@ module TwentyOne
     end
 
     def deal_hands
-      @player.hand.add(@deck.deal_hand)
-      @dealer.hand.add(@deck.deal_hand)
+      @player.add(@deck.deal_hand)
+      @dealer.add(@deck.deal_hand)
     end
 
     def player_turns
@@ -413,7 +434,7 @@ module TwentyOne
 
       @dealer.hide_hand = false
 
-      if @player.hand.busted?
+      if @player.busted?
         display_table
         return
       end
@@ -425,9 +446,9 @@ module TwentyOne
       loop do
         display_table
 
-        break unless !player.hand.busted? && player.hit?
+        break unless !player.busted? && player.hit?
 
-        player.hand.add([@deck.deal_card])
+        player.add([@deck.deal_card])
 
         sleep(1) if player.class == Dealer
       end
@@ -447,8 +468,8 @@ module TwentyOne
     end
 
     def reset_hands
-      @player.hand.reset
-      @dealer.hand.reset
+      @player.reset
+      @dealer.reset
     end
   end
 end
