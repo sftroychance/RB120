@@ -1,0 +1,8 @@
+:remaining:  You have %{rem} guesses remaining.
+:enter: "Enter a number between %{min} and %{max}: "
+:invalid_guess: Invalid guess.
+:your_guess: "Your guess is %{result}.\n"
+:you_won: "That's the number!\n\nYou won!\n"
+:you_lost: No more guesses. You lost!
+:play_again: "Do you want to play again? (y or n) "
+:invalid_response: Invalid response.

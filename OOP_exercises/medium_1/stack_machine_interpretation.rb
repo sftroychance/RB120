@@ -8,8 +8,8 @@ language that has the following commands:
 
 n Place a value n in the "register". Do not modify the stack.
 PUSH Push the register value on to the stack. Leave the value in the register.
-ADD Pops a value from the stack and adds it to the register value, storing the result in
-the register.
+ADD Pops a value from the stack and adds it to the register value,
+storing the result in the register.
 SUB Pops a value from the stack and subtracts it from the register value,
 storing the result in the register.
 MULT Pops a value from the stack and multiplies it by the register value,
@@ -21,7 +21,8 @@ the integer remainder of the division in the register.
 POP Remove the topmost item from the stack and place in register
 PRINT Print the register value
 
-All operations are integer operations (which is only important with DIV and MOD).
+All operations are integer operations (which is only important with
+DIV and MOD).
 
 Programs will be supplied to your language method via a string passed in as an
 argument. Your program should produce an error if an unexpected item is present
@@ -78,9 +79,8 @@ class Minilang
     tokenize_program
 
     process_tokens
-
-  rescue InvalidTokenError, EmptyStackError => detail
-    puts detail.message
+  rescue InvalidTokenError, EmptyStackError => e
+    puts e.message
   end
 
   private
@@ -107,9 +107,9 @@ class Minilang
   end
 
   def validate_token(token)
-    if !TOKENS.include?(token)
-      raise InvalidTokenError, "Invalid token: #{token}"
-    end
+    return if TOKENS.include?(token)
+
+    raise InvalidTokenError, "Invalid token: #{token}"
   end
 
   def execute_token(token)
@@ -212,4 +212,3 @@ minilang.eval(width: 10, height: 10)
 # 100
 minilang.eval(width: 25, height: 30)
 # 750
-
