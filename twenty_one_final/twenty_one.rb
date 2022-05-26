@@ -44,7 +44,7 @@ module TwentyOne
 
     def display_hand_result
       winner = hand_winner
-      update_score(winner) if winner
+      update_game_score(winner) if winner
 
       display_table
 
@@ -86,7 +86,7 @@ module TwentyOne
       end
     end
 
-    def update_score(winner)
+    def update_game_score(winner)
       @game_score[winner] += 1
     end
 
